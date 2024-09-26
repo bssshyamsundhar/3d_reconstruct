@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Three.js PLY Loader</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background: #f0f0f0;
+        }
+        #container {
+            text-align: center;
+        }
+        #uploadForm {
+            width:465px;
+            margin-top: 20px;
+            padding: 20px;
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        #uploadForm input[type="file"] {
+            margin-bottom: 10px;
+        }
+        #visualizationContainer {
+            margin-top: 20px;
+            width: 500px;
+            height: 500px;
+            position: relative;
+        }
+        #visualization {
+            width: 500px;
+            height: 500px;
+        }
+        #loadingSpinner {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 24px;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <h1>3D Model Viewer</h1>
+        <form id="uploadForm" action="/upload" method="post" enctype="multipart/form-data">
+            <input type="file" name="file" id="fileInput" />
+            <input type="submit" value="Upload" />
+        </form>
+        <div id="visualizationContainer">
+            <div id="loadingSpinner">Loading...</div>
+            <div id="visualization"></div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/PLYLoader.js"></script>
+
+    <script>
+        let scene, camera, renderer, controls, plyLoader;
+
+        document.getElementById('uploadForm').addEventListener('submit', async function(event) {
+            event.preventDefault();
+            showLoadingSpinner(true);
+
+            const formData = new FormData();
+            const fileInput = document.getElementById('fileInput');
+            formData.append('file', fileInput.files[0]);
+
+            try {
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await response.json();
+                if (data.status === 'success') {
+                    console.log(data.message);
+                    init();
+                } else {
+                    console.error(data.message);
+                    alert(data.message);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('An error occurred during file upload.');
+            } finally {
+                showLoadingSpinner(false);
+            }
+        });
+
+        function init() {
+            setupScene();
+            setupCamera();
+            setupRenderer();
+            setupControls();
+            setupLighting();
+            setupPLYLoader();
+            loadMesh();
+            window.addEventListener('resize', onWindowResize, false);
+            animate();
+        }
+
+        function setupScene() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0xdddddd);
+        }
+
+        function setupCamera() {
+            camera = new THREE.PerspectiveCamera(75, 1, 0.1, 1000);
+            camera.position.z = 5;
+        }
+
+        function setupRenderer() {
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(500, 500);
+            document.getElementById('visualization').appendChild(renderer.domElement);
+        }
+
+        function setupControls() {
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.25;
+            controls.screenSpacePanning = false;
+        }
+
+        function setupLighting() {
+            const light = new THREE.DirectionalLight(0xffffff, 1);
+            light.position.set(1, 1, 1).normalize();
+            scene.add(light);
+
+            const ambientLight = new THREE.AmbientLight(0x404040);
+            scene.add(ambientLight);
+        }
+
+        function setupPLYLoader() {
+            plyLoader = new THREE.PLYLoader();
+        }
+
+        async function loadMesh() {
+            showLoadingSpinner(true);
+            try {
+                const response = await fetch('/get_ply');
+                const blob = await response.blob();
+                const url = URL.createObjectURL(blob);
+                plyLoader.load(url, function(geometry) {
+                    geometry.scale(11, 11, 11);
+                    geometry.rotateZ(Math.PI); // Rotate the geometry 45 degrees around the Z-axis
+
+                    const material = new THREE.MeshPhongMaterial({ vertexColors: true });
+                    const mesh = new THREE.Mesh(geometry, material);
+                    scene.add(mesh);
+                });
+            } catch (error) {
+                console.error('Error loading PLY file:', error);
+                alert('An error occurred while loading the PLY file.');
+            } finally {
+                showLoadingSpinner(false);
+            }
+        }
+
+        function onWindowResize() {
+            camera.aspect = 1;
+            camera.updateProjectionMatrix();
+            renderer.setSize(500, 500);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        function showLoadingSpinner(show) {
+            const spinner = document.getElementById('loadingSpinner');
+            spinner.style.display = show ? 'block' : 'none';
+        }
+    </script>
+</body>
+</html>
