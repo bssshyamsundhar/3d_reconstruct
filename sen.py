@@ -25,9 +25,7 @@ def upload_file():
         file_path = os.path.join(app.config['UPLOAD_FOLDER'], file.filename)
         file.save(file_path)
         print("file saved successfully")
-        # Process the file with Python
         mesh = reconstruct(file_path)
-        # Save the processed file as mesh_with_texture.ply
         output_file_path = os.path.join(app.config['UPLOAD_FOLDER'], 'mesh_with_texture.ply')
         o3d.io.write_triangle_mesh(output_file_path, mesh)
         print("Mesh with texture saved")
