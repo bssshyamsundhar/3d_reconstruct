@@ -7,15 +7,12 @@ def generate_mesh(pcd):
     mesh, densities = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(pcd, depth=9)
     print("Poisson reconstruction completed")
 
-    # Crop the mesh to remove noise (optional)
     bbox = pcd.get_axis_aligned_bounding_box()
     mesh = mesh.crop(bbox)
 
-    # Simplify the mesh
     mesh = mesh.simplify_quadric_decimation(target_number_of_triangles=100000)
     print("Mesh simplification completed")
 
-    # Apply texture to the mesh
     pcd_tree = o3d.geometry.KDTreeFlann(pcd)
     vertex_colors = []
     for vertex in mesh.vertices:
@@ -25,5 +22,4 @@ def generate_mesh(pcd):
     # o3d.io.write_triangle_mesh("mesh_with_texture.ply", mesh)
     # print("Mesh with texture saved")
     return mesh
-    # Save the mesh
    
